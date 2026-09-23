@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Check } from 'lucide-react';
+import { X, Check, AlertCircle } from 'lucide-react';
 import { FolderTree } from './FolderTree';
 import { ActionToolbar } from './ActionToolbar';
+import { DeleteConfirmModal } from './DeleteConfirmModal';
 import { useWorkspaceStore } from '@/store/useWorkspaceStore';
+import { getSuggestedItemName } from '@/utils/naming';
 import type { FileSystemItem } from '@/types/filesystem';
 
 interface SidebarProps {
@@ -17,6 +19,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const selectedItemId = useWorkspaceStore((state) => state.selectedItemId);
   const createItem = useWorkspaceStore((state) => state.createItem);
   const renameItem = useWorkspaceStore((state) => state.renameItem);
+  const deleteItem = useWorkspaceStore((state) => state.deleteItem);
   const resetWorkspace = useWorkspaceStore((state) => state.resetWorkspace);
 
   const [expandedFolderIds, setExpandedFolderIds] = useState<Record<string, boolean>>({});
@@ -24,8 +27,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const [createType, setCreateType] = useState<'file' | 'folder'>('file');
   const [targetParentId, setTargetParentId] = useState<string | null>(null);
   const [newItemName, setNewItemName] = useState('');
+  const [createError, setCreateError] = useState<string | null>(null);
+
   const [renamingItem, setRenamingItem] = useState<FileSystemItem | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [renameError, setRenameError] = useState<string | null>(null);
+
+  const [deletingItem, setDeletingItem] = useState<FileSystemItem | null>(null);
 
   const selectedItem = items.find((item) => item.id === selectedItemId) ?? null;
 
@@ -43,7 +51,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const handleStartCreate = (parentId: string | null = null, type: 'file' | 'folder' = 'file') => {
     setTargetParentId(parentId);
     setCreateType(type);
-    setNewItemName('');
+    const suggested = getSuggestedItemName(items, parentId, type);
+    setNewItemName(suggested);
+    setCreateError(null);
     setIsCreating(true);
   };
 
@@ -52,8 +62,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     if (!newItemName.trim()) return;
 
     try {
+      setCreateError(null);
       await createItem({
-        name: newItemName,
+        name: newItemName.trim(),
         type: createType,
         parentId: targetParentId,
         content: createType === 'file' ? '' : undefined,
@@ -65,13 +76,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
       setIsCreating(false);
       setNewItemName('');
-    } catch {
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create item');
     }
   };
 
   const handleStartRename = (item: FileSystemItem) => {
     setRenamingItem(item);
     setRenameValue(item.name);
+    setRenameError(null);
   };
 
   const handleConfirmRename = async (e: React.FormEvent) => {
@@ -79,10 +92,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     if (!renamingItem || !renameValue.trim()) return;
 
     try {
-      await renameItem(renamingItem.id, renameValue);
+      setRenameError(null);
+      await renameItem(renamingItem.id, renameValue.trim());
       setRenamingItem(null);
       setRenameValue('');
-    } catch {
+    } catch (err) {
+      setRenameError(err instanceof Error ? err.message : 'Failed to rename item');
     }
   };
 
@@ -146,25 +161,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 autoFocus
                 placeholder={createType === 'file' ? 'index.ts' : 'new-folder'}
                 value={newItemName}
-                onChange={(e) => setNewItemName(e.target.value)}
+                onChange={(e) => {
+                  setNewItemName(e.target.value);
+                  if (createError) setCreateError(null);
+                }}
                 className="flex-1 bg-white border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-sans"
               />
               <button
                 type="submit"
-                className="p-1 text-emerald-600 hover:bg-gray-200 rounded transition"
-                title="Confirm"
+                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition"
+                title="Create (Enter)"
+                aria-label="Confirm Create"
               >
                 <Check className="w-4 h-4" />
               </button>
               <button
                 type="button"
-                onClick={() => setIsCreating(false)}
-                className="p-1 text-gray-500 hover:bg-gray-200 rounded transition"
-                title="Cancel"
+                onClick={() => {
+                  setIsCreating(false);
+                  setCreateError(null);
+                }}
+                className="p-1.5 text-gray-500 hover:bg-gray-200 rounded transition"
+                title="Cancel (Esc)"
+                aria-label="Cancel Create"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
+            {createError && (
+              <div className="flex items-center space-x-1 text-[11px] text-red-600">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{createError}</span>
+              </div>
+            )}
           </form>
         )}
 
@@ -181,25 +210,39 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 type="text"
                 autoFocus
                 value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
+                onChange={(e) => {
+                  setRenameValue(e.target.value);
+                  if (renameError) setRenameError(null);
+                }}
                 className="flex-1 bg-white border border-gray-300 rounded px-2 py-1 text-xs text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 font-sans"
               />
               <button
                 type="submit"
-                className="p-1 text-emerald-600 hover:bg-gray-200 rounded transition"
-                title="Save Rename"
+                className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded transition"
+                title="Save Rename (Enter)"
+                aria-label="Save Rename"
               >
                 <Check className="w-4 h-4" />
               </button>
               <button
                 type="button"
-                onClick={() => setRenamingItem(null)}
-                className="p-1 text-gray-500 hover:bg-gray-200 rounded transition"
-                title="Cancel"
+                onClick={() => {
+                  setRenamingItem(null);
+                  setRenameError(null);
+                }}
+                className="p-1.5 text-gray-500 hover:bg-gray-200 rounded transition"
+                title="Cancel (Esc)"
+                aria-label="Cancel Rename"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
+            {renameError && (
+              <div className="flex items-center space-x-1 text-[11px] text-red-600">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{renameError}</span>
+              </div>
+            )}
           </form>
         )}
 
@@ -211,9 +254,21 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             onToggleExpand={handleToggleExpand}
             onStartCreate={handleStartCreate}
             onStartRename={handleStartRename}
+            onStartDelete={(item) => setDeletingItem(item)}
           />
         </div>
       </aside>
+
+      <DeleteConfirmModal
+        item={deletingItem}
+        isOpen={!!deletingItem}
+        onClose={() => setDeletingItem(null)}
+        onConfirm={async () => {
+          if (deletingItem) {
+            await deleteItem(deletingItem.id);
+          }
+        }}
+      />
     </>
   );
 };

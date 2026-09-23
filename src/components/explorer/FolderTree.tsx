@@ -9,6 +9,7 @@ import {
   FileJson,
   ChevronRight,
   Plus,
+  FolderPlus,
   Trash2,
   Edit2,
 } from "lucide-react";
@@ -23,6 +24,7 @@ interface FolderTreeProps {
   onToggleExpand?: (folderId: string) => void;
   onStartCreate?: (parentId: string | null, type: "file" | "folder") => void;
   onStartRename?: (item: FileSystemItem) => void;
+  onStartDelete?: (item: FileSystemItem) => void;
 }
 
 function getFileIcon(filename: string) {
@@ -47,6 +49,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   onToggleExpand: controlledOnToggle,
   onStartCreate,
   onStartRename,
+  onStartDelete,
 }) => {
   const [internalExpandedIds, setInternalExpandedIds] = useState<
     Record<string, boolean>
@@ -169,21 +172,44 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                 <span className="truncate text-xs">{item.name}</span>
               </div>
 
-              <div className="hidden group-hover:flex items-center space-x-0.5 shrink-0 ml-1">
+              <div
+                className={`flex items-center space-x-0.5 shrink-0 ml-1 transition-opacity ${
+                  isSelectedFolder || isActiveFile || selectedItemId === item.id
+                    ? "opacity-100"
+                    : "opacity-100 md:opacity-0 md:group-hover:opacity-100 group-focus-within:opacity-100"
+                }`}
+              >
                 {isFolder && onStartCreate && (
-                  <button
-                    type="button"
-                    title="Add file inside"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      selectItem(item.id);
-                      if (!isExpanded) handleToggle(item.id);
-                      onStartCreate(item.id, "file");
-                    }}
-                    className="p-1 hover:text-gray-900 hover:bg-gray-200 rounded text-gray-500 transition"
-                  >
-                    <Plus className="w-3 h-3" />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      title="Add file inside"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectItem(item.id);
+                        if (!isExpanded) handleToggle(item.id);
+                        onStartCreate(item.id, "file");
+                      }}
+                      className="p-1 hover:text-blue-600 hover:bg-blue-50 rounded text-gray-500 transition"
+                      aria-label={`Add file inside ${item.name}`}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      title="Add folder inside"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        selectItem(item.id);
+                        if (!isExpanded) handleToggle(item.id);
+                        onStartCreate(item.id, "folder");
+                      }}
+                      className="p-1 hover:text-amber-600 hover:bg-amber-50 rounded text-gray-500 transition"
+                      aria-label={`Add folder inside ${item.name}`}
+                    >
+                      <FolderPlus className="w-3.5 h-3.5" />
+                    </button>
+                  </>
                 )}
 
                 {onStartRename && (
@@ -195,8 +221,9 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                       onStartRename(item);
                     }}
                     className="p-1 hover:text-gray-900 hover:bg-gray-200 rounded text-gray-500 transition"
+                    aria-label={`Rename ${item.name}`}
                   >
-                    <Edit2 className="w-3 h-3" />
+                    <Edit2 className="w-3.5 h-3.5" />
                   </button>
                 )}
 
@@ -207,11 +234,16 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                   }
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteItem(item.id);
+                    if (onStartDelete) {
+                      onStartDelete(item);
+                    } else {
+                      deleteItem(item.id);
+                    }
                   }}
                   className="p-1 hover:text-red-600 hover:bg-red-50 rounded text-gray-400 transition"
+                  aria-label={`Delete ${item.name}`}
                 >
-                  <Trash2 className="w-3 h-3" />
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -224,6 +256,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                 onToggleExpand={handleToggle}
                 onStartCreate={onStartCreate}
                 onStartRename={onStartRename}
+                onStartDelete={onStartDelete}
               />
             )}
           </li>

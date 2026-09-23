@@ -21,7 +21,10 @@ export default function WorkspacePage() {
   }, [isInitialized, initializeStore]);
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-900 overflow-hidden font-sans antialiased">
+    <div
+      className="flex flex-col h-screen bg-gray-50 text-gray-900 overflow-hidden font-sans antialiased"
+      suppressHydrationWarning
+    >
       <header className="flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-gray-200 bg-white select-none">
         <div className="flex items-center space-x-2.5">
           <button
