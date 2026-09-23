@@ -4,6 +4,8 @@ A browser-based file explorer and text editor. Everything runs client-side — n
 
 Built with Next.js, React, TypeScript, Zustand, and Tailwind CSS.
 
+### Live Link: https://miniworkspaceexplorer.vercel.app/
+
 --------------------------------------------------
 
 ## Getting Started
@@ -59,5 +61,58 @@ The flow is pretty straightforward:
 
 ----------------------------------------
 
+### typescript
 
+```typescript
+interface FileSystemItem {
+  id: string;
+  name: string;
+  type: "folder" | "file";
+  parentId: string | null; // null = root level
+  content?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+```
+
+-----------------------------------------
+
+## Edge Cases
+
+### Recursive folder deletion
+
+When you delete a folder, all its contents need to go too. The store does a BFS traversal starting from the target folder, collects every descendant ID, then removes them all in one batch — both from memory and from IndexedDB in a single transaction.
+
+If you happen to be viewing a folder that gets deleted, the app automatically navigates back to its parent (or root) so you don't end up staring at a blank screen.
+
+### Breadcrumbs
+
+Breadcrumbs are built by walking up the `parentId` chain from the current item to root, then reversing the result. Nothing fancy, just a while loop.
+
+### Duplicate names
+
+Before creating or renaming anything, the app checks all siblings (items with the same `parentId`) for name collisions. The check is case-insensitive — you can't have both "Notes" and "notes" in the same folder. If there's a conflict, you get an error message instead of a silent failure.
+
+### Empty states
+
+When a folder has nothing in it, the main panel shows a prompt to create a file or folder rather than just being blank.
+
+-----------------------------------
+
+
+## Security
+
+Since users can type whatever they want as file/folder names, I added a `sanitizeItemName()` function that cleans up the input before saving. It strips out HTML tags, dangerous protocols like `javascript:`, path traversal stuff like `../`, and reserved OS characters. Also trims whitespace and caps names at 255 chars. Basically just making sure nobody can sneak in anything weird through the filename input.
+
+-------------------------------------
+
+## Performance
+
+A few things I did to keep it snappy:
+
+- Lazy-loaded the editor with `next/dynamic` so it doesn't get bundled into the initial page load
+- Added a 400ms debounce on the text editor — typing doesn't write to IndexedDB on every keystroke, it waits until you pause
+- On mobile the sidebar collapses into a drawer instead of always being visible, keeps the layout clean on smaller screens
+
+---------------------------------
 
