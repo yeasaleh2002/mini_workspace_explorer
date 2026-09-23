@@ -23,4 +23,41 @@ After that I set up the Next.js config, added `tsconfig.json` with strict mode, 
 ----------------------------------------------------
 
 
+## Tech Stack
+
+- Next.js 16 (App Router), React 19, TypeScript
+- Zustand for state management
+- IndexedDB
+- Tailwind CSS for styling
+
+-----------------------------------------------------
+
+## Project Structure
+
+- `src/app/` — page, layout, global styles
+- `src/components/explorer/` — sidebar, folder tree, main panel, breadcrumbs, search, toolbar
+- `src/components/editor/` — text editor
+- `src/hooks/` — custom hook for store access
+- `src/store/` — Zustand store and selectors
+- `src/types/` — TypeScript interfaces
+- `src/utils/` — IndexedDB helpers, input sanitization, seed data
+
+------------------------------------------------------
+
+
+## How State Management Works
+
+### Zustand + IndexedDB
+
+I went with Zustand over Redux because the API is way simpler for a project this size — no action types, no dispatchers, just a hook that gives you state and setters.
+
+The flow is pretty straightforward:
+
+1. On app load, the store pulls everything from IndexedDB and hydrates the in-memory state.
+2. When you create/rename/delete something, the UI updates immediately (optimistic update), and a write-through to IndexedDB happens in the background.
+3. IndexedDB was picked over localStorage because it's async, handles way more data, and supports structured objects natively.
+
+----------------------------------------
+
+
 
